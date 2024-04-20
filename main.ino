@@ -1,8 +1,9 @@
-#include <Stepper.h>
+#include <Servo.h>
 
 // TODO: change pins to match wiring
-Stepper right = Stepper(200, 2, 3, 4, 5); //3 5 4 2     2453  2435
-Stepper left = Stepper(200, 8, 9, 10, 11);
+Servo right;
+Servo left;
+
 
 const int turnTime = 0; // average duration of a turn (ms)
 const int targetTime = 60000; // (ms)
@@ -12,25 +13,72 @@ byte numTurns = 10;
 
 int startTime = 0; // (ms)
 int remainingTime = 0; // (ms)
-int velocity = 0; // (rpm)
+float velocity = 0; // (cm/s)
+bool start = false;
+int buttonPressed = 0;
+float maxSpeed; // (cm/ms)
+
+float calRight = 1;
+float calLeft = 0.7;
 
 // Stand-in for whatever actually makes the motors move properly
-void moveRight(int steps) {}
-void moveLeft(int steps) {}
+void moveRight(int v) {
+  right.write(-v * calRight + 90);
+}
+void moveLeft(int v) {
+  left.write(v * calLeft + 90);
+}
+
+void stop() {
+  right.write(92);
+  left.write(92);
+}
 
 // Drives straight a given distance (cm)
 void driveFor(int dist) {
-  moveRight(int(dist / 22 * 200));
-  moveLeft(int(dist / 22 * 200));
+  int end = millis() + (dist / (maxSpeed * velocity));
+  while (millis() < end) {
+    if (dist > 0) {
+      moveLeft(velocity * 90);
+      moveRight(velocity * 90);
+    } else {
+      moveLeft(velocity * -90);
+      moveRight(velocity * -90);
+    }
+  }
   remainingDistance -= dist;
 }
 
+void driveFor(int dist, int ms) {
+  int end = millis() + ms;
+  while (millis() < end) {
+    moveLeft((((float) dist / ms) / maxSpeed) * 90);
+    moveRight((((float) dist / ms) / maxSpeed) * 90);
+  }
+}
+
+void driveForTime(int ms) {
+  int end = millis() + ms;
+  while (millis() < end) {
+    moveLeft(45);
+    moveRight(45);
+  }
+  stop();
+}
+
 // Turns clockwise a given angle (degrees)
-void turn(int angle) {
-  // angle / 360 * turn circumference / wheel circumference * num steps
-  moveLeft(int(angle * 1.185));
-  moveRight(int(-angle * 1.185));
-  numTurns--;
+void turn(float angle) {
+  int end = millis() + (666 * (abs(angle) / 90));
+  while (millis() < end) {
+    if (angle > 0) {
+      moveLeft(10);
+      moveRight(-10);
+    } else {
+      moveLeft(-10);
+      moveRight(10);
+    }
+  }
+  stop();
 }
 
 void adjustVelocity() {
@@ -46,13 +94,27 @@ void route() {
 }
 
 void setup() {
-  pinMode(13, INPUT);
+  Serial.begin(9600);
+  pinMode(2, INPUT);
+  right.attach(9);
+  left.attach(10);
+  delay(5000);
+  //turn(-90);
+  //driveForTime(1250) = ~50cm
+  //turn(90) = ~90d clockwise
+  //turn(-60) = ~90d counterclockwise
+  delay(5000);
 }
 
 void loop() {
-  if (digitalRead(13) == HIGH) {
-    delay(1000);
-    route();
-    delay(100000000);
+  /*buttonPressed = digitalRead(2);
+  if (buttonPressed) {
+    start = true;
   }
+  if (start) {
+    Serial.println("started");
+  }
+  Serial.println(buttonPressed);
+  delay(1000);*/
+  
 }
